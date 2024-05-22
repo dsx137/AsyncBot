@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
-from api.db import Db
 
 
 class Bot:
-    def __init__(self, id: str, db: Db) -> None:
+    def __init__(self, id: str) -> None:
         self.id = id
-        self.db = db
 
     @abstractmethod
     async def send_message(

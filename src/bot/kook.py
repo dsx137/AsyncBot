@@ -48,8 +48,8 @@ class Events:
 
 
 class Client(Bot):
-    def __init__(self, token: str, bus: event.Bus, db: Db):
-        super().__init__(id=None, db=db)
+    def __init__(self, token: str, bus: event.Bus):
+        super().__init__(id=None)
         logger.info("KookClient initializing...")
         self._base_url = "https://www.kookapp.cn/api/v3"
         self._authorization = f"Bot {token}"
