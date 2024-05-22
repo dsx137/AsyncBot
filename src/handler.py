@@ -17,6 +17,7 @@ class Handler:
     def __init__(self, bus: event.Bus, db: Db):
         logger.info("Registering events...")
         self.db = db
+        self.db.create_table("main", {"content": "TEXT"})
         bus.subscribe(events.RecivedMessage, self.on_recived_message)
 
     async def on_recived_message(self, e: events.RecivedMessage):

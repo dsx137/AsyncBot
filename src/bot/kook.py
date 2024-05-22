@@ -76,6 +76,23 @@ class Client(Bot):
         res = await self._make_request(method="GET", endpoint=Endpoints.USER_ME)
         return res["data"]["id"]
 
+    async def _publish(self, data: dict):
+        d = data.get("d")
+        extra = d.get("extra") if d else None
+        type = extra.get("type") if extra else None
+        if data["s"] == 0:
+            if type == Events.PLAIN_MESSAGE or type == Events.KMARKDOWN_MESSAGE:
+                self.bus.publish(
+                    event=events.RecivedMessage(
+                        bot=self,
+                        content=d["content"],
+                        mention=extra["mention"],
+                        author_id=extra["author"]["id"],
+                        channel_id=d["target_id"],
+                        msg_id=d["msg_id"],
+                    ),
+                )
+
     async def connect(self):
         res = await self._make_request(method="GET", endpoint=Endpoints.GATEWAY_INDEX)
         url = res["data"]["url"]
@@ -87,23 +104,7 @@ class Client(Bot):
                     try:
                         zippedData = await websocket.recv()
                         data = json.loads(zlib.decompress(zippedData).decode())
-                        d = data.get("d")
-                        extra = d.get("extra") if d else None
-                        type = extra.get("type") if extra else None
-                        if data["s"] == 0:
-                            if (
-                                type == Events.PLAIN_MESSAGE
-                                or type == Events.KMARKDOWN_MESSAGE
-                            ):
-                                self.bus.publish(
-                                    event=events.RecivedMessage(
-                                        bot=self,
-                                        content=d["content"],
-                                        mention=extra["mention"],
-                                        author_id=extra["author"]["id"],
-                                        channel_id=d["target_id"],
-                                    ),
-                                )
+                        await self._publish(data)
                     except asyncio.CancelledError:
                         raise
                     except Exception as e:
