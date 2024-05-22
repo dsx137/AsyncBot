@@ -6,30 +6,33 @@ import logging
 import zlib
 
 from logger import logger
-import event
+import api.event as event
+import api.events as events
 import traceback
-import kook
+import bot.kook as kook
+from logger import logger
 
 
-def register_events(client: kook.Client):
+def register_events(bus: event.Bus):
     logger.info("Registering events...")
-    client.bus.subscribe(kook.Events.DELETED_MESSAGE, on_delete_message)
-    client.bus.subscribe(kook.Events.KMARKDOWN_MESSAGE, on_kmarkdown_message)
+    bus.subscribe(events.RecivedMessage, on_recived_message)
 
 
-async def on_delete_message(publisher: kook.Client, data):
-    logger.info("hello")
-    logger.info(data),
+async def on_recived_message(e: events.RecivedMessage):
+    if e.bot.id != e.author_id and e.bot.id in e.mention:
+        e.bot.db.insert("main", {"content": e.content})
+        data = e.bot.db.select("main")
+        content = f"""
+Hello, World!
+你好
+Db content:
 
-
-async def on_kmarkdown_message(publisher: kook.Client, data):
-    id = await publisher.get_me_id()
-    extra = data["extra"]
-    author = extra["author"]
-    mention = extra["mention"]
-    if id != author["id"] and id in mention:
-        await publisher.send_message(
-            target_id=data["target_id"],
-            content="Hello, World!",
-            type=1,
+```json 
+{json.dumps(obj=data,indent=4,ensure_ascii=False)}
+```
+"""
+        await e.bot.send_message(
+            target_id=e.channel_id,
+            content=content,
+            type=9,
         )

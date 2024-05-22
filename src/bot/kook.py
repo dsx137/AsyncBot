@@ -6,8 +6,11 @@ import logging
 import zlib
 
 from logger import logger
-import event
+from api.bot import Bot
+import api.event as event
+import api.events as events
 import traceback
+from api.db import Db
 
 
 class Endpoints:
@@ -38,18 +41,20 @@ class Endpoints:
 
 
 class Events:
+    PLAIN_MESSAGE = 1
     KMARKDOWN_MESSAGE = 9
     UPDATED_MESSAGE = "updated_message"
     DELETED_MESSAGE = "deleted_message"
 
 
-class Client:
-    def __init__(self, token: str):
+class Client(Bot):
+    def __init__(self, token: str, bus: event.Bus, db: Db):
+        super().__init__(id=None, db=db)
         logger.info("KookClient initializing...")
         self._base_url = "https://www.kookapp.cn/api/v3"
         self._authorization = f"Bot {token}"
         self._headers = {"Authorization": self._authorization}
-        self.bus = event.Bus()
+        self.bus = bus
 
     async def _make_request(
         self,
@@ -67,31 +72,58 @@ class Client:
             ) as response:
                 return await response.json()
 
+    async def _get_id(self):
+        res = await self._make_request(method="GET", endpoint=Endpoints.USER_ME)
+        return res["data"]["id"]
+
     async def connect(self):
         res = await self._make_request(method="GET", endpoint=Endpoints.GATEWAY_INDEX)
         url = res["data"]["url"]
         async with websockets.connect(url) as websocket:
             logger.info("Connected to gateway.")
             try:
+                self.id = await self._get_id()
                 while True:
-                    zippedData = await websocket.recv()
-                    data = json.loads(zlib.decompress(zippedData).decode())
-                    d = data.get("d")
-                    extra = d.get("extra") if d else None
-                    type = extra.get("type") if extra else None
-                    if data["s"] == 0:
-                        self.bus.publish(self, type, d)
+                    try:
+                        zippedData = await websocket.recv()
+                        data = json.loads(zlib.decompress(zippedData).decode())
+                        d = data.get("d")
+                        extra = d.get("extra") if d else None
+                        type = extra.get("type") if extra else None
+                        if data["s"] == 0:
+                            if (
+                                type == Events.PLAIN_MESSAGE
+                                or type == Events.KMARKDOWN_MESSAGE
+                            ):
+                                self.bus.publish(
+                                    event=events.RecivedMessage(
+                                        bot=self,
+                                        content=d["content"],
+                                        mention=extra["mention"],
+                                        author_id=extra["author"]["id"],
+                                        channel_id=d["target_id"],
+                                    ),
+                                )
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        logger.error(f"An error occurred: {e}")
+                        logger.error(traceback.format_exc())
             except asyncio.CancelledError:
                 logger.info("Connection closed.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
                 logger.error(traceback.format_exc())
 
-    async def get_me_id(self):
-        res = await self._make_request(method="GET", endpoint=Endpoints.USER_ME)
-        return res["data"]["id"]
-
-    async def send_message(self, target_id: str, content: str, type: int = 1):
+    async def send_message(
+        self,
+        target_id: str,
+        content: str,
+        type: int = 1,
+        quote: str = None,
+        nonce: str = None,
+        temp_target_id: str = None,
+    ):
         res = await self._make_request(
             method="POST",
             endpoint=Endpoints.MESSAGE_CREATE,
@@ -101,6 +133,9 @@ class Client:
                     "target_id": target_id,
                     "content": content,
                     "type": type,
+                    "quote": quote,
+                    "nonce": nonce,
+                    "temp_target_id": temp_target_id,
                 }
             ),
         )
