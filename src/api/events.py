@@ -12,7 +12,12 @@ class RecivedMessage(event.Event):
         author_id: str,
         msg_id: str,
     ) -> None:
-        super().__init__(**{k: v for k, v in locals().items() if k != "self"})
+        self.bot = bot
+        self.content = content
+        self.channel_id = channel_id
+        self.mention = mention
+        self.author_id = author_id
+        self.msg_id = msg_id
 
 
 class ButtonClicked(event.Event):
@@ -24,4 +29,8 @@ class ButtonClicked(event.Event):
         value: str,
         targer_id: str,
     ) -> None:
-        super().__init__(**{k: v for k, v in locals().items() if k != "self"})
+        self.bot = bot
+        self.msg_id = msg_id
+        self.user_id = user_id
+        self.value = value
+        self.targer_id = targer_id
