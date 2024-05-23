@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 
 class Db:
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.conn = sqlite3.connect(path)
         self.cursor = self.conn.cursor()
 

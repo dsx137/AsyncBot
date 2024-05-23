@@ -1,12 +1,11 @@
-import aiohttp
 import asyncio
-import json
 import bot.kook as kook
 import api.event as event
 import os
 from logger import logger
 from api.db import Db
 from handler import Handler
+import api.context as context
 
 
 async def main():
@@ -18,10 +17,9 @@ async def main():
     if not db_path:
         logger.error("Db path is missing")
         db_path = input("Enter your db path: ")
-    bus = event.Bus()
-    db = Db(path=db_path)
-    handler = Handler(bus=bus, db=db)
-    client = kook.Client(token=token, bus=bus)
+    context.init_program(bus=event.Bus(), db=Db(path=db_path))
+    handler = Handler()
+    client = kook.Client(token=token)
     task = asyncio.create_task(client.connect())
     done, pending = await asyncio.wait({task})
 

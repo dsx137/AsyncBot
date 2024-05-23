@@ -8,9 +8,9 @@ import zlib
 from logger import logger
 from api.bot import Bot
 import api.event as event
-import api.events as events
+import items.events as events
 import traceback
-from api.db import Db
+import api.context as context
 
 
 class Endpoints:
@@ -48,13 +48,12 @@ class Events:
 
 
 class Client(Bot):
-    def __init__(self, token: str, bus: event.Bus):
+    def __init__(self, token: str):
         super().__init__(id=None)
         logger.info("KookClient initializing...")
         self._base_url = "https://www.kookapp.cn/api/v3"
         self._authorization = f"Bot {token}"
         self._headers = {"Authorization": self._authorization}
-        self.bus = bus
 
     async def _make_request(
         self,
@@ -70,6 +69,9 @@ class Client(Bot):
                 headers={**self._headers, **headers},
                 data=data,
             ) as response:
+                if response.status != 200:
+                    logger.error(f"An error occurred: {response.status}")
+                    logger.error(traceback.format_exc())
                 return await response.json()
 
     async def _get_id(self):
@@ -82,7 +84,7 @@ class Client(Bot):
         type = extra.get("type") if extra else None
         if data["s"] == 0:
             if type == Events.PLAIN_MESSAGE or type == Events.KMARKDOWN_MESSAGE:
-                self.bus.publish(
+                context.program.bus.publish(
                     event=events.RecivedMessage(
                         bot=self,
                         content=d["content"],
@@ -125,7 +127,7 @@ class Client(Bot):
         nonce: str = None,
         temp_target_id: str = None,
     ):
-        res = await self._make_request(
+        return await self._make_request(
             method="POST",
             endpoint=Endpoints.MESSAGE_CREATE,
             headers={"Content-Type": "application/json"},
@@ -140,4 +142,3 @@ class Client(Bot):
                 }
             ),
         )
-        return res

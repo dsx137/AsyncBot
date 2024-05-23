@@ -6,57 +6,32 @@ import logging
 import zlib
 
 import api.event as event
-import api.events as events
+import items.events as events
+import items.commands as commands
+import api.command as command
 import traceback
 import bot.kook as kook
 from logger import logger
 from api.db import Db
+import api.context as context
 
 
 class Handler:
-    def __init__(self, bus: event.Bus, db: Db):
+    def __init__(self):
         logger.info("Registering events...")
-        self.db = db
-        self.db.create_table(
-            "candidate",
-            {
-                "name": "TEXT",
-                "url": "TEXT",
-                "description": "TEXT",
-            },
-        )
-        bus.subscribe(events.RecivedMessage, self.on_recived_message)
+        context.program.bus.subscribe(events.RecivedMessage, self.on_recived_message)
 
     async def on_recived_message(self, e: events.RecivedMessage):
-        reply = lambda content: e.bot.send_message(
-            target_id=e.channel_id,
-            content=content,
-            type=9,
-        )
-
         if e.bot.id != e.author_id and e.bot.id in e.mention:
             params = e.content.replace(f"(met){e.bot.id}(met)", "").strip().split(" ")
-            command = params[0]
-            if command == "添加待选":
-                name = params[1]
-                url = params[2]
-                description = ",".join(params[3:])
-                self.db.insert(
-                    "candidate",
-                    {
-                        "name": name,
-                        "url": url,
-                        "description": description,
-                    },
-                )
-                await reply("添加成功")
-            if command == "查看待选":
-                candidates = self.db.select("candidate")
-                await reply(
-                    "\n".join(
-                        [
-                            f"{candidate['name']} {candidate['url']} {candidate['description']}"
-                            for candidate in candidates
-                        ]
-                    )
-                )
+            commands.root.execute(
+                c=command.ContextExecute(
+                    params=params,
+                    bot=e.bot,
+                    content=e.content,
+                    channel_id=e.channel_id,
+                    mention=e.mention,
+                    author_id=e.author_id,
+                    msg_id=e.msg_id,
+                ),
+            )
