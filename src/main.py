@@ -1,6 +1,6 @@
 import asyncio
 import bot.kook as kook
-import api.event as event
+from .api.event import Bus
 import os
 from logger import logger
 from api.db import Db
@@ -17,7 +17,7 @@ async def main():
     if not db_path:
         logger.error("Db path is missing")
         db_path = input("Enter your db path: ")
-    context.init_program(bus=event.Bus(), db=Db(path=db_path))
+    context.init_program(bus=Bus(), db=Db(path=db_path))
     handler.init_handlers()
     client = kook.Client(token=token)
 
