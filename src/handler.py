@@ -1,10 +1,3 @@
-import aiohttp
-import asyncio
-import json
-import websockets
-import logging
-import zlib
-
 import api.event as event
 import items.events as events
 import items.commands as commands
@@ -16,12 +9,9 @@ from api.db import Db
 import api.context as context
 
 
-class Handler:
-    def __init__(self):
-        logger.info("Registering events...")
-        context.program.bus.subscribe(events.RecivedMessage, self.on_recived_message)
-
-    async def on_recived_message(self, e: events.RecivedMessage):
+def init_handlers():
+    @context.program.bus.subscribe(events.RecivedMessage)
+    async def on_recived_message(e: events.RecivedMessage):
         if e.bot.id != e.author_id and e.bot.id in e.mention:
             params = e.content.replace(f"(met){e.bot.id}(met)", "").strip().split(" ")
             commands.root.execute(

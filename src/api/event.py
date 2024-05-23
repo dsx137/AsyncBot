@@ -19,9 +19,24 @@ class Bus:
         self._subscribers = defaultdict(list)
         self._lock = threading.Lock()
 
-    def subscribe(self, type: Type[Event], subscriber: Callable[[E], None]) -> None:
-        with self._lock:
-            self._subscribers[type].append(subscriber)
+    def subscribe(self, type: E, subscriber: Callable[[E], None] = None):
+        if subscriber:
+            with self._lock:
+                self._subscribers[type].append(subscriber)
+        else:
+
+            def decorator(subscriber: Callable[[E], None]):
+                if not asyncio.iscoroutinefunction(subscriber):
+                    raise TypeError("Subscriber must be a coroutine function.")
+
+                @wraps(subscriber)
+                async def wrapper(event):
+                    return await subscriber(event)
+
+                self.subscribe(type, wrapper)
+                return wrapper
+
+            return decorator
 
     def unsubscribe(self, type: Type[Event], subscriber: Callable[[E], None]) -> None:
         with self._lock:

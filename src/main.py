@@ -4,8 +4,8 @@ import api.event as event
 import os
 from logger import logger
 from api.db import Db
-from handler import Handler
 import api.context as context
+import handler
 
 
 async def main():
@@ -18,8 +18,9 @@ async def main():
         logger.error("Db path is missing")
         db_path = input("Enter your db path: ")
     context.init_program(bus=event.Bus(), db=Db(path=db_path))
-    handler = Handler()
+    handler.init_handlers()
     client = kook.Client(token=token)
+
     task = asyncio.create_task(client.connect())
     done, pending = await asyncio.wait({task})
 
