@@ -1,6 +1,6 @@
 import asyncio
 import bot.kook as kook
-from .api.event import Bus
+from api.event import Bus
 import os
 from logger import logger
 from api.db import Db
